@@ -13,7 +13,8 @@ import sys
 import time
 from urllib.request import Request, urlopen
 
-LABELS = {"normal", "violence", "fall"}
+SOURCE_LABELS = {"normal": "non-violent", "violence": "violent"}
+LABELS = set(SOURCE_LABELS)
 SPLITS = ("train", "val", "test")
 VIDEO_EXTENSIONS = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".wmv", ".webm"}
 
@@ -110,7 +111,7 @@ def dhash(frame):
     tiny = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (9, 8))
     return f"{sum(int(b) << i for i,b in enumerate((tiny[:,1:] > tiny[:,:-1]).flatten())):016x}"
 
-def _normalize_video(source, path, cfg, crop=None):
+def _normalize_video(source, path, cfg):
     import cv2
     original = inspect(source)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -131,8 +132,7 @@ def _normalize_video(source, path, cfg, crop=None):
                 if not ok:
                     raise ValueError("Decode failed during normalization")
                 source_index += 1
-            image = frame[:,frame.shape[1]//2:] if crop == "right_half_rgb" else frame
-            image = letterbox(image, width, height)
+            image = letterbox(frame, width, height)
             writer.write(image)
             if i in positions:
                 hashes.append(dhash(image))
@@ -155,7 +155,7 @@ def normalize(row, root, cfg):
         raise ValueError("Raw checksum changed")
     name = f"data/processed/{row['label']}/{row['sample_id']}.mp4"
     path = inside(root, name)
-    normalized = _normalize_video(source, path, cfg, row.get("crop"))
+    normalized = _normalize_video(source, path, cfg)
     original, video, hashes = (
         normalized["original"], normalized["video"], normalized["dhashes"]
     )
@@ -323,7 +323,7 @@ def main(argv=None):
     parser.add_argument("--output-dir",default="data/processed/raw")
     parser.add_argument("--workers",type=int,default=4)
     parser.add_argument("--max-file-mb",type=int,default=64)
-    parser.add_argument("--dataset",choices=["airtlab","urfall"])
+    parser.add_argument("--dataset",choices=["airtlab"])
     args = parser.parse_args(argv)
     root = args.root.resolve()
     local = root/"data/metadata/local"
@@ -340,7 +340,10 @@ def main(argv=None):
             if len({r["sample_id"] for r in rows})!=len(rows):
                 raise ValueError("Duplicate sample IDs")
             for r in rows:
-                if r["label"] not in LABELS or not r.get("group_id") or not r.get("license_id") or not r["url"].startswith("https://"):
+                if (r.get("dataset") != "airtlab" or r["label"] not in LABELS
+                        or r.get("source_label") != SOURCE_LABELS[r["label"]]
+                        or not r.get("group_id") or not r.get("license_id")
+                        or not r["url"].startswith("https://")):
                     raise ValueError("Invalid catalog row")
                 inside(root,r["raw_path"])
             for r in rows:

@@ -14,7 +14,7 @@ Hệ thống phân tích chuyển động cơ thể qua nhiều khung hình, đ�
   - Hiển thị bounding box, skeleton và độ tin cậy.
 
 - **Nhận dạng hành động:**
-  - Phân loại ba trạng thái: `normal`, `violence`, `fall`.
+  - Mục tiêu dự án gồm nhận diện `normal`, `violence` và fall; catalog AIRTLab hiện chỉ cung cấp dữ liệu cho hai lớp đầu.
   - Theo dõi chuyển động của từng người qua nhiều frame.
   - Sử dụng chuỗi keypoint để phân biệt hành động.
 
@@ -42,7 +42,7 @@ Hệ thống phân tích chuyển động cơ thể qua nhiều khung hình, đ�
 
 - `app/` - Chứa giao diện Streamlit.
 - `configs/` - Chứa cấu hình dataset, mô hình và ngưỡng cảnh báo.
-- `data/raw/` - Chứa video gốc theo các lớp `normal`, `violence`, `fall`.
+- `data/raw/` - Video gốc; catalog AIRTLab hiện có hai nhãn nội bộ `normal` và `violence`.
 - `data/processed/` - Chứa video RGB chuẩn hóa; dữ liệu keypoint được xuất riêng.
 - `data/annotations/` - Chứa nhãn hành động và thời điểm xảy ra sự kiện.
 - `data/metadata/` - Chứa thông tin nguồn, người tham gia, bối cảnh và giấy phép.

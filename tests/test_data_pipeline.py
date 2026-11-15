@@ -11,7 +11,7 @@ def rows():
                  group_id=f"{label}-{i}", parent_video_id=f"{label}-{i}",
                  sha256=f"{label}-{i}-{cam}", processed_sha256=f"p-{label}-{i}-{cam}",
                  video={"duration_s":2}, dhashes=[])
-            for label in ("normal","violence","fall") for i in range(10) for cam in range(2)]
+            for label in ("normal","violence") for i in range(10) for cam in range(2)]
 
 def test_recordings_and_camera_views_stay_together():
     result=split_rows(rows())
@@ -71,11 +71,11 @@ def make_video(path):
         writer.write(frame)
     writer.release()
 
-def test_real_video_normalizes_rgb_crop_fps_and_duration(tmp_path):
-    raw=tmp_path/"data/raw/fall/a.mp4"
+def test_real_video_normalizes_rgb_fps_and_duration(tmp_path):
+    raw=tmp_path/"data/raw/normal/a.mp4"
     make_video(raw)
-    row=dict(sample_id="a",dataset="urfall",label="fall",raw_path="data/raw/fall/a.mp4",
-             sha256=checksum(raw),crop="right_half_rgb")
+    row=dict(sample_id="a",dataset="airtlab",label="normal",raw_path="data/raw/normal/a.mp4",
+             sha256=checksum(raw))
     result=normalize(row,tmp_path,dict(width=640,height=360,fps=15))
     assert result["video"]["frames"]==30
     assert result["video"]["fps"]==15
@@ -83,7 +83,7 @@ def test_real_video_normalizes_rgb_crop_fps_and_duration(tmp_path):
     cap=cv2.VideoCapture(str(tmp_path/result["processed_path"]))
     ok,frame=cap.read()
     cap.release()
-    assert ok and frame[180,320,2]>150 and frame[180,320,0]<20
+    assert ok and frame.shape==(360,640,3)
     assert inspect(raw)["frames"]==60
 
 def test_normalize_raw_folder_keeps_originals_and_relative_layout(tmp_path):
