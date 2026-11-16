@@ -7,3 +7,9 @@ data/metadata/local/
 data/annotations/local/
 outputs/pose/
 models/*.pt
+
+# External videos and generated results
+data/external/
+outputs/inference/
+outputs/evaluation/
+outputs/checkpoints/**/last.pt

@@ -101,6 +101,7 @@ def process_video(
     minimum_box_aspect_ratio: float,
     minimum_torso_tilt_degrees: float,
     confirm_frames: int,
+    fall_baseline_enabled: bool = True,
     device: str | None = None,
     sample_id: str | None = None,
     label: str | None = None,
@@ -117,7 +118,7 @@ def process_video(
         capture.release()
         raise ValueError(f"Invalid video metadata: {source}")
 
-    baseline = FallBaseline(confirm_frames)
+    baseline = FallBaseline(confirm_frames) if fall_baseline_enabled else None
     pose_temp = run_dir / "poses.jsonl.tmp"
     video_temp = run_dir / "annotated.tmp.mp4"
     pose_path = run_dir / "poses.jsonl"
@@ -171,23 +172,31 @@ def process_video(
                         keypoints = normalize_keypoints(
                             points.tolist(), bbox, frame_width, frame_height
                         )
-                        assessment = assess_fall_candidate(
-                            bbox,
-                            keypoints,
-                            minimum_keypoint_confidence=keypoint_confidence,
-                            minimum_box_aspect_ratio=minimum_box_aspect_ratio,
-                            minimum_torso_tilt_degrees=minimum_torso_tilt_degrees,
-                        )
-                        if track_id is None:
+                        if fall_baseline_enabled:
+                            assessment = assess_fall_candidate(
+                                bbox,
+                                keypoints,
+                                minimum_keypoint_confidence=keypoint_confidence,
+                                minimum_box_aspect_ratio=minimum_box_aspect_ratio,
+                                minimum_torso_tilt_degrees=minimum_torso_tilt_degrees,
+                            )
+
+                            if track_id is None:
+                                temporal = {
+                                    "consecutive_candidate_frames": 0,
+                                    "fall_confirmed": False,
+                                }
+                            else:
+                                active_track_ids.add(track_id)
+                                temporal = baseline.update(
+                                    track_id, assessment["fall_candidate"]
+                                )
+                        else:
                             temporal = {
                                 "consecutive_candidate_frames": 0,
                                 "fall_confirmed": False,
                             }
-                        else:
-                            active_track_ids.add(track_id)
-                            temporal = baseline.update(
-                                track_id, assessment["fall_candidate"]
-                            )
+
                         person = {
                             "track_id": track_id,
                             "bbox_xyxy_px": bbox,
@@ -199,18 +208,22 @@ def process_video(
                             ],
                             "box_confidence": float(box_conf),
                             "keypoints": keypoints,
-                            "fall_baseline": {**assessment, **temporal},
-                        }
+                            }
+
+                        if fall_baseline_enabled:
+                            person["fall_baseline"] = {**assessment, **temporal}
+
                         frame_people.append(person)
                         people_count += 1
-                        confirmed_count += int(temporal["fall_confirmed"])
+                        if fall_baseline_enabled:
+                            confirmed_count += int(temporal["fall_confirmed"])  
                         if track_id is not None:
                             _draw_person(
                                 frame, bbox, keypoints, track_id,
                                 temporal["fall_confirmed"],
                             )
-
-                baseline.reset_missing(active_track_ids)
+                if fall_baseline_enabled:
+                    baseline.reset_missing(active_track_ids)
                 stream.write(
                     json.dumps(
                         {
@@ -244,7 +257,6 @@ def process_video(
         "source_label": label,
         "frames": frame_index,
         "people_detections": people_count,
-        "confirmed_fall_candidate_frames": confirmed_count,
         "fps": fps,
         "frame_width": frame_width,
         "frame_height": frame_height,
@@ -255,14 +267,17 @@ def process_video(
             "annotated_video": video_path.name,
         },
         "keypoint_names": list(COCO_KEYPOINTS),
-        "fall_baseline": {
+    }
+
+    if fall_baseline_enabled:
+        summary["confirmed_fall_candidate_frames"] = confirmed_count
+        summary["fall_baseline"] = {
             "box_aspect_ratio_min": minimum_box_aspect_ratio,
             "torso_tilt_degrees_min": minimum_torso_tilt_degrees,
             "keypoint_confidence_min": keypoint_confidence,
             "consecutive_frames": confirm_frames,
             "warning": "Heuristic candidate only; not a trained or validated classifier.",
-        },
-    }
+        }
     (run_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -344,6 +359,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, default=Path("configs/pose.json"))
     parser.add_argument("--model", help="Override the pose model path/name")
     parser.add_argument("--device", help="Optional Ultralytics device, e.g. cpu or 0")
+    parser.add_argument(
+    "--violence-mode",
+    action="store_true",
+    help="Disable the fall-candidate baseline for violence classification.",
+    )   
     args = parser.parse_args(argv)
     root = args.root.resolve()
     config_path = args.config if args.config.is_absolute() else root / args.config
@@ -371,6 +391,7 @@ def main(argv: list[str] | None = None) -> int:
                 minimum_box_aspect_ratio=config["fall_box_aspect_ratio"],
                 minimum_torso_tilt_degrees=config["fall_torso_tilt_degrees"],
                 confirm_frames=config["fall_confirm_frames"],
+                fall_baseline_enabled=not args.violence_mode,
                 device=args.device,
                 sample_id=item["sample_id"],
                 label=item["label"],

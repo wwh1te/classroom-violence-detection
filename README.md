@@ -253,3 +253,139 @@ python -m src.pose.pipeline --manifest data\metadata\local\manifest.jsonl --spli
 ```
 
 Kết quả chỉ được tạo mới trong `outputs\pose\`; xem [docs/pose_workflow.md](docs/pose_workflow.md) để biết schema keypoint, ngưỡng heuristic và các giới hạn đánh giá. Baseline là bộ luật sàng lọc candidate, không phải bộ phân loại té ngã đã được huấn luyện/kiểm định.
+
+
+
+##  Video Inference and Violence Detection
+
+Phần này hướng dẫn cách sử dụng mô hình đã huấn luyện để phân tích một video mới, không cần đưa video vào quá trình training.
+
+### 1. Chuẩn bị thư mục chứa video bên ngoài
+
+Tại thư mục gốc của project, chạy:
+
+```powershell
+New-Item -ItemType Directory -Force -Path .\data\external
+```
+
+Đưa video cần kiểm tra vào thư mục:
+
+```text
+data/
+└── external/
+    └── test_video.mp4
+```
+
+Video trong `data/external/` chỉ dùng cho inference, không tự động được thêm vào dataset training hoặc validation.
+
+### 2. Kích hoạt môi trường Python
+
+Nếu môi trường ảo chưa được kích hoạt, chạy:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+### 3. Kiểm tra các tham số inference
+
+Chạy:
+
+```powershell
+python -m src.inference --help
+```
+
+Hệ thống hỗ trợ các tham số:
+
+| Tham số | Chức năng |
+|---|---|
+| `--source` | Đường dẫn video đầu vào |
+| `--model` | Chọn mô hình `mlp` hoặc `lstm` |
+| `--checkpoint` | Chỉ định checkpoint cụ thể (không bắt buộc) |
+| `--threshold` | Ngưỡng xác suất cảnh báo |
+| `--device` | Thiết bị chạy YOLO, ví dụ `0` hoặc `cpu` |
+| `--output-dir` | Thư mục lưu kết quả |
+
+### 4. Chạy mô hình trên video mới
+
+Ví dụ sử dụng LSTM:
+
+```powershell
+python -m src.inference --source ".\data\external\test_video.mp4" --model lstm
+```
+
+Hoặc sử dụng MLP:
+
+```powershell
+python -m src.inference --source ".\data\external\test_video.mp4" --model mlp
+```
+
+Mặc định, hệ thống sử dụng checkpoint tốt nhất được tìm thấy của mô hình đã chọn và ngưỡng cảnh báo `0.5`.
+
+### 5. Quy trình xử lý tự động
+
+Sau khi chạy command, hệ thống thực hiện:
+
+1. Load classifier và checkpoint đã huấn luyện.
+2. Load YOLO Pose model.
+3. Chuẩn hóa video về độ phân giải 640×360 và 15 FPS.
+4. Phát hiện người và trích xuất pose bằng YOLO Pose.
+5. Theo dõi đối tượng bằng ByteTrack.
+6. Trích xuất pose features và motion features.
+7. Tổng hợp đặc trưng và đưa vào classifier.
+8. Phân loại video thành Normal hoặc Violence.
+9. Tính xác suất và kiểm tra điều kiện cảnh báo.
+10. Xác định các khoảng thời gian nghi vấn.
+11. Lưu kết quả inference.
+
+### 6. Xem kết quả
+
+Sau khi hoàn thành, kết quả được lưu tự động trong:
+
+```text
+outputs/
+└── inference/
+    └── video_name_timestamp/
+        ├── normalized_input.mp4
+        ├── poses.jsonl
+        ├── summary.json
+        ├── annotated.mp4
+        └── inference_result.json
+```
+
+**Các file quan trọng:**
+
+- `inference_result.json`: Nhãn dự đoán, xác suất Normal/Violence, trạng thái cảnh báo và timestamp các đoạn nghi vấn.
+- `annotated.mp4`: Video đã được chú thích bằng kết quả pose detection.
+- `summary.json`: Thông tin tổng hợp quá trình xử lý video.
+- `poses.jsonl`: Dữ liệu pose được trích xuất từ video.
+
+### 7. Ví dụ kết quả
+
+```text
+Prediction: VIOLENCE
+Normal probability:   8.00%
+Violence probability: 92.00%
+Alert threshold:      50.00%
+
+Potential violence detected in this video.
+```
+
+Ví dụ nội dung timestamp trong JSON:
+
+```json
+"suspicious_segments": [
+    {
+        "start_frame": 180,
+        "end_frame": 243,
+        "max_violence_probability": 0.92,
+        "start_seconds": 12.0,
+        "end_seconds": 16.267
+    }
+]
+```
+
+Người kiểm tra có thể mở video và xem lại khoảng thời gian nghi vấn.
+
+**Lưu ý:** Kết quả là dự đoán của mô hình, không phải kết luận chắc chắn rằng hành vi bạo lực đã xảy ra. Người kiểm tra cần xem lại video để xác minh.
+
+Video thử nghiệm, checkpoint và kết quả inference không cần đưa lên GitHub. Chỉ cần chia sẻ source code và hướng dẫn sử dụng.
