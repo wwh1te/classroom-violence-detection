@@ -1,0 +1,14 @@
+{
+  "model_type": "mlp",
+  "epochs": 50,
+  "patience": 8,
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "class_weights": [
+    1.4642857313156128,
+    0.7592592835426331
+  ],
+  "device": "cuda",
+  "normalization": "training_data_only"
+}
