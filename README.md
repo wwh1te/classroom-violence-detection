@@ -283,6 +283,8 @@ Video trong `data/external/` chỉ dùng cho inference, không tự động đư
 Nếu môi trường ảo chưa được kích hoạt, chạy:
 
 ```powershell
+cd .\train-and-test
+
 .\.venv\Scripts\Activate.ps1
 ```
 
