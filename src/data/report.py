@@ -16,7 +16,7 @@ def generate(root):
     (reportdir/"audit.json").write_text(json.dumps(audit,ensure_ascii=False,indent=2),encoding="utf-8")
     stats={
         "date":"2026-10-17", "videos":len(rows),
-        "source_counts":dict(Counter(r["dataset"]+"/"+r["label"] for r in rows)),
+        "source_counts":dict(Counter(r["dataset"]+"/"+r.get("source_label",r["label"]) for r in rows)),
         "recording_groups":len({r["group_id"] for r in rows}),
         "split_components":len({r["split_component_id"] for r in rows}),
         "split_counts":audit["counts"],
@@ -36,7 +36,7 @@ def generate(root):
     }
     (reportdir/"dataset_statistics.json").write_text(json.dumps(stats,ensure_ascii=False,indent=2),encoding="utf-8")
     with (root/"data/metadata/splits.csv").open("w",encoding="utf-8",newline="") as stream:
-        fields=["sample_id","dataset","label","group_id","camera_id","split_component_id","split","sha256","processed_sha256"]
+        fields=["sample_id","dataset","label","source_label","group_id","camera_id","split_component_id","split","sha256","processed_sha256"]
         writer=csv.DictWriter(stream,fieldnames=fields,extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
@@ -45,7 +45,7 @@ def generate(root):
         "",
         "Ngày chạy: 17/10/2026. Số liệu dưới đây đo trên các file đã tải và giải mã thành công, không phải số lượng mục tiêu.",
         "",
-        f"Bộ dữ liệu khởi đầu gồm **{len(rows)} video**, thuộc **{stats['recording_groups']} nhóm bản ghi** từ AIRTLab và UR Fall. Video được ánh xạ sang ba nhãn normal, violence, fall theo nhãn cấp clip do nguồn cung cấp. Nguồn và điều khoản được ghi tại [dataset_sources.md](../dataset_sources.md).",
+        f"Bộ dữ liệu gồm **{len(rows)} video**, thuộc **{stats['recording_groups']} nhóm bản ghi** từ AIRTLab. Nhãn gốc `non-violent` được ánh xạ thành `normal`; `violent` thành `violence`. Dataset này có hai lớp và không có ví dụ fall. Nguồn và điều khoản được ghi tại [dataset_sources.md](../dataset_sources.md).",
         "",
         "| Nguồn / lớp | Video |",
         "| --- | ---: |",
@@ -55,17 +55,17 @@ def generate(root):
         "",
         f"Dung lượng gốc: {stats['raw_bytes']/1024**3:.3f} GiB; dung lượng chuẩn hóa: {stats['processed_bytes']/1024**3:.3f} GiB. Tổng thời lượng bản xử lý: {stats['processed_duration_seconds']/60:.2f} phút, {stats['processed_frames']:,} frame. Thời lượng tính theo từng video/góc quay, không phải thời gian của các sự kiện duy nhất.",
         "",
-        "Video được giải mã tuần tự, kiểm số frame, rồi chuẩn hóa thành RGB 640×360 ở 15 fps bằng letterbox. Với UR Fall MP4 preview, chỉ lấy nửa RGB bên phải. Không đưa ảnh depth hoặc âm thanh vào đặc trưng. Bản MP4 đầu ra được đọc lại để kiểm số frame và kích thước.",
+        "Video được giải mã tuần tự, kiểm số frame, rồi chuẩn hóa thành RGB 640×360 ở 15 fps bằng letterbox. Bản MP4 đầu ra được đọc lại để kiểm số frame và kích thước.",
         "",
         "## Chia tập và kiểm tra",
         "",
         "Chia theo nhóm sự kiện, kết nối cả video gốc, bản trùng byte và toàn bộ ứng viên gần trùng bằng connected components, phân tầng theo nguồn/lớp, seed 42 và tỷ lệ mục tiêu 70/15/15. Hai camera AIRTLab cùng sự kiện luôn đi chung. Tỷ lệ thực tế có làm tròn theo nhóm.",
         "",
-        "| Tập | normal | violence | fall | Tổng |",
-        "| --- | ---: | ---: | ---: | ---: |",
+        "| Tập | normal | violence | Tổng |",
+        "| --- | ---: | ---: | ---: |",
     ]
     for split in ("train","val","test"):
-        values=[audit["counts"].get(split+"/"+label,0) for label in ("normal","violence","fall")]
+        values=[audit["counts"].get(split+"/"+label,0) for label in ("normal","violence")]
         lines.append(f"| {split} | "+" | ".join(map(str,values+[sum(values)]))+" |")
     lines += [
         "",
@@ -76,8 +76,8 @@ def generate(root):
         f"- Có {stats['pending_clip_review']} video chưa được người gán nhãn duyệt lại. Nhãn hiện tại là nhãn cấp clip của nguồn, không phải ground truth từng frame/người.",
         "- events.csv là template pending. Chưa đo thời điểm sự kiện, đồng thuận giữa người gán nhãn hoặc độ chính xác nhãn thời gian. Chỉ có hướng dẫn và quy trình duyệt đã xây dựng.",
         "- Chưa xác lập split độc lập người tham gia hoặc bối cảnh vì thiếu metadata phù hợp. Không dùng kết quả từ split này để tuyên bố tổng quát sang người hoặc lớp học mới.",
-        "- Dữ liệu không đại diện riêng lớp học. Nguồn và lớp có tương quan: violence đến từ AIRTLab, fall từ UR Fall; mô hình có thể học nền/nguồn thay vì hành động. Cần bổ sung dữ liệu cùng bối cảnh cho cả ba lớp và đánh giá trên lớp học được đồng thuận.",
-        "- UR Fall dùng video preview có nén. Không so trực tiếp với nghiên cứu dùng PNG RGB gốc hoặc toàn bộ camera mà không ghi khác biệt.",
+        "- AIRTLab được diễn trong một phòng và không đại diện riêng lớp học; mô hình có thể học nền hoặc bối cảnh thay vì hành động. Cần dữ liệu từ bối cảnh độc lập để đánh giá khả năng tổng quát.",
+        "- Dataset này không chứa nhãn fall. Cần một nguồn fall được phê duyệt trước khi huấn luyện hoặc đánh giá lớp đó.",
         f"- ready_for_final_evaluation = {str(audit['ready_for_final_evaluation']).lower()}. Chưa thể coi bộ sự kiện là nhãn đánh giá cuối.",
         "",
         "Mã nguồn, nguồn dữ liệu, tải/chuẩn hóa, hướng dẫn nhãn và kiểm tra tự động đã có. Trước khi đóng issue, nhóm phải xác nhận phạm vi nghiệm thu nhãn cấp clip, xem lại ứng viên gần trùng xuyên tập; nếu dùng nhãn thời gian trong báo cáo, hoàn tất gán nhãn và kiểm tra độc lập.",

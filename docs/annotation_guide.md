@@ -1,5 +1,7 @@
 # Hướng dẫn gán nhãn hành động — phiên bản 1
 
+Trong catalog AIRTLab, nhãn nguồn `non-violent` được ánh xạ thành `normal`, còn `violent` được ánh xạ thành `violence`. AIRTLab không cung cấp ví dụ cho nhãn fall; quy tắc fall bên dưới chỉ áp dụng khi có nguồn dữ liệu fall riêng đã được phê duyệt.
+
 ## Đơn vị và ba lớp
 
 Đơn vị nguồn là video gốc; đơn vị gán nhãn chi tiết là một khoảng thời gian trong video. Giữ nguyên sample_id và group_id trong mọi bản cắt, augmentation và chuỗi keypoint. Nhãn do dataset cung cấp chỉ là nhãn cấp clip, không phải nhãn cho mọi frame hoặc mọi người trong clip.
