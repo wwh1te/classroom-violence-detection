@@ -44,6 +44,7 @@ Hệ thống phân tích chuyển động cơ thể qua nhiều khung hình, đ�
 - `configs/` - Chứa cấu hình dataset, mô hình và ngưỡng cảnh báo.
 - `data/raw/` - Video gốc; catalog AIRTLab hiện có hai nhãn nội bộ `normal` và `violence`.
 - `data/processed/` - Chứa video RGB chuẩn hóa; dữ liệu keypoint được xuất riêng.
+- `data/split_views/` - Các thư mục train/val/test dễ quan sát, được tạo từ manifest bằng `python scripts/materialize_split_views.py`; đây là bản sao tiện dụng, không phải nguồn dữ liệu canonical của pipeline.
 - `data/annotations/` - Chứa nhãn hành động và thời điểm xảy ra sự kiện.
 - `data/metadata/` - Chứa thông tin nguồn, người tham gia, bối cảnh và giấy phép.
 - `src/data/` - Xử lý video, cắt clip, trích xuất frame và chia dữ liệu.
@@ -55,6 +56,16 @@ Hệ thống phân tích chuyển động cơ thể qua nhiều khung hình, đ�
 - `outputs/` - Lưu video kết quả, biểu đồ và nhật ký.
 - `tests/` - Chứa mã kiểm thử.
 - `docs/` - Chứa tài liệu dataset, gán nhãn, thiết kế và Responsible AI.
+
+### Tạo thư mục train/test dễ quan sát
+
+Pipeline chính vẫn dùng `data/metadata/local/manifest.jsonl` và trường `split`. Nếu cần thư mục vật lý cho công cụ bên ngoài, chạy:
+
+```powershell
+python scripts/materialize_split_views.py
+```
+
+Kết quả nằm trong `data/split_views/{train,val,test}/{normal,violence}`. Video gốc và manifest canonical không bị di chuyển hoặc sửa đổi; các bản sao này được bỏ qua khi commit.
 
 ## Công nghệ sử dụng
 
