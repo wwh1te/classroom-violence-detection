@@ -1,8 +1,8 @@
-# Classroom Safety AI - Hệ thống phát hiện bạo lực và té ngã
+# Classroom Safety AI - Hệ thống phát hiện bạo lực 
 
 ## Giới thiệu
 
-Classroom Safety AI là hệ thống hỗ trợ giám sát video lớp học, sử dụng **YOLO Pose kết hợp Tracking và mô hình nhận dạng hành động** để phát hiện các tình huống bất thường như bạo lực hoặc té ngã.
+Classroom Safety AI là hệ thống hỗ trợ giám sát video lớp học, sử dụng **YOLO Pose kết hợp Tracking và mô hình nhận dạng hành động** để phát hiện các tình huống bất thường như bạo lực.
 
 Hệ thống phân tích chuyển động cơ thể qua nhiều khung hình, đưa ra cảnh báo để giáo viên hoặc người quản lý kiểm tra. Dự án không nhận diện khuôn mặt và không tự động kết luận vi phạm.
 
@@ -17,10 +17,6 @@ Hệ thống phân tích chuyển động cơ thể qua nhiều khung hình, đ�
   - Mục tiêu dự án gồm nhận diện `normal`, `violence` và fall; catalog AIRTLab hiện chỉ cung cấp dữ liệu cho hai lớp đầu.
   - Theo dõi chuyển động của từng người qua nhiều frame.
   - Sử dụng chuỗi keypoint để phân biệt hành động.
-
-- **Phát hiện té ngã:**
-  - Phân tích góc nghiêng cơ thể, vị trí hông và tốc độ thay đổi tư thế.
-  - Hạn chế nhầm lẫn với cúi người, ngồi xuống hoặc nằm có chủ đích.
 
 - **Phát hiện bạo lực:**
   - Phân tích chuyển động nhanh của tay, chân và khoảng cách giữa nhiều người.
@@ -142,7 +138,6 @@ python -c "import cv2; print('OpenCV:', cv2.__version__)"
 data/raw/
 ├── normal/
 ├── violence/
-└── fall/
 ```
 
 Có thể đặt video trực tiếp trong `data/raw/` hoặc trong các thư mục con. Không đưa video thật hoặc dữ liệu cá nhân lên repository công khai.
@@ -154,7 +149,6 @@ YOLO có thể chạy với một video hoặc quét đệ quy tất cả video 
 ```text
 data/raw/
 ├── sample.mp4
-└── fall/
     └── example.mp4
 ```
 
@@ -263,4 +257,4 @@ python -m src.pose.pipeline --source data\processed\fall\<sample_id>.mp4
 python -m src.pose.pipeline --manifest data\metadata\local\manifest.jsonl --split test
 ```
 
-Kết quả chỉ được tạo mới trong `outputs\pose\`; xem [docs/pose_workflow.md](docs/pose_workflow.md) để biết schema keypoint, ngưỡng heuristic và các giới hạn đánh giá. Baseline là bộ luật sàng lọc candidate, không phải bộ phân loại té ngã đã được huấn luyện/kiểm định.
+Kết quả chỉ được tạo mới trong `outputs\pose\`; xem [docs/pose_workflow.md](docs/pose_workflow.md) để biết schema keypoint, ngưỡng heuristic và các giới hạn đánh giá. Baseline là bộ luật sàng lọc candidate, không phải bộ phân loại bạo lực đã được huấn luyện/kiểm định.
